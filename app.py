@@ -1,28 +1,21 @@
 import streamlit as st
-# Importamos el diccionario que creaste en config.py
+import os
+# Importamos el diccionario desde tu archivo config.py
 from config import MAPA_IMAGENES
 
-# Configuración de la página
-st.set_page_config(page_title="Standoff Tracker", layout="wide")
+st.title("Galería de Mercado Standoff 2")
 
-st.title("🔫 Galería de Mercado Standoff 2")
-st.write("Selecciona una skin para ver su análisis detallado:")
+# Selecciona una skin
+# Usamos las llaves del diccionario para el menú desplegable
+opciones = list(MAPA_IMAGENES.keys())
+seleccion = st.selectbox("Selecciona una skin para ver su análisis detallado:", opciones)
 
-# Creamos una lista con los nombres de las armas disponibles en tu config
-lista_armas = list(MAPA_IMAGENES.keys())
+# Obtenemos la ruta de la imagen
+ruta_img = MAPA_IMAGENES[seleccion]
 
-# Creamos un menú desplegable (Selectbox) para elegir el arma
-arma_seleccionada = st.selectbox("Elige un arma:", lista_armas)
-
-# Obtenemos la ruta de la imagen correspondiente al arma seleccionada
-ruta_img = MAPA_IMAGENES.get(arma_seleccionada)
-
-# --- AQUÍ ESTÁ EL "SEGURO" PARA EL ERROR ROJO ---
-# Solo intentamos mostrar la imagen si la variable ruta_img tiene contenido
-if ruta_img:
+# Verificación de seguridad: ¿Existe la imagen antes de intentar cargarla?
+if os.path.exists(ruta_img):
     st.image(ruta_img, use_container_width=True)
 else:
-    st.warning("La imagen para esta arma no está configurada correctamente.")
-
-# Aquí puedes añadir más contenido debajo de la imagen cuando la tengas
-st.write(f"Has seleccionado: {arma_seleccionada}")
+    st.error(f"Error: No se pudo encontrar el archivo de imagen en: {ruta_img}")
+    st.write("Asegúrate de que el nombre del archivo en la carpeta 'assets' coincida exactamente con lo escrito en config.py.")
