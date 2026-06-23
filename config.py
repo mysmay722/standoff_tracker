@@ -9,21 +9,3 @@ MAPA_IMAGENES = {
     "M40 Disguise": "assets/M40_Disguise.PNG" # <-- Nueva línea
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
