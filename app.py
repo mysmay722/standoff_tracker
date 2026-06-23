@@ -1,21 +1,23 @@
 import streamlit as st
 import os
-# Importamos el diccionario desde tu archivo config.py
 from config import MAPA_IMAGENES
 
+st.set_page_config(layout="wide") # Esto expande la app para que quepan más imágenes
 st.title("Galería de Mercado Standoff 2")
 
-# Selecciona una skin
-# Usamos las llaves del diccionario para el menú desplegable
-opciones = list(MAPA_IMAGENES.keys())
-seleccion = st.selectbox("Selecciona una skin para ver su análisis detallado:", opciones)
+# Definimos el número de columnas para la cuadrícula
+num_columnas = 3
+cols = st.columns(num_columnas)
 
-# Obtenemos la ruta de la imagen
-ruta_img = MAPA_IMAGENES[seleccion]
-
-# Verificación de seguridad: ¿Existe la imagen antes de intentar cargarla?
-if os.path.exists(ruta_img):
-    st.image(ruta_img, use_container_width=True)
-else:
-    st.error(f"Error: No se pudo encontrar el archivo de imagen en: {ruta_img}")
-    st.write("Asegúrate de que el nombre del archivo en la carpeta 'assets' coincida exactamente con lo escrito en config.py.")
+# Iteramos sobre el diccionario de imágenes
+for i, (nombre_skin, ruta_img) in enumerate(MAPA_IMAGENES.items()):
+    # Usamos el operador módulo (%) para alternar entre columnas
+    col_actual = cols[i % num_columnas]
+    
+    with col_actual:
+        # Verificamos si la imagen existe antes de mostrarla
+        if os.path.exists(ruta_img):
+            st.image(ruta_img, caption=nombre_skin, use_container_width=True)
+        else:
+            st.error(f"Imagen no encontrada: {nombre_skin}")
+            st.write(f"Ruta fallida: {ruta_img}")
