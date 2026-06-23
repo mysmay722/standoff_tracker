@@ -1,79 +1,103 @@
 import streamlit as st
-import requests
+import pandas as pd
+import plotly.express as px
 import os
+from datetime import datetime
 from config import MAPA_IMAGENES
 
-st.set_page_config(layout="wide")
-st.title("Galería de Mercado Standoff 2")
+st.set_page_config(page_title="Dashboard Pro", layout="wide")
 
-# Función para descargar el JSON online con caché temporal para optimizar rendimiento
-@st.cache_data(ttl=30)  # Mantiene los datos en caché por 30 segundos antes de volver a consultar la URL
-def obtener_precios_online():
-    url = "https://standoff2markettracker.com/items.json"
-    try:
-        respuesta = requests.get(url)
-        if respuesta.status_code == 200:
-            return respuesta.json()
-        else:
-            st.error(f"Error de conexión con el servidor de precios (Código: {respuesta.status_code})")
-            return {}
-    except Exception as e:
-        st.error(f"No se pudo conectar a la base de datos del mercado: {e}")
-        return {}
+st.title("📊 Análisis de Mercado Standoff 2")
+st.write(f"📅 **Fecha de hoy:** {datetime.now().strftime('%A, %d de %B de %Y')}")
 
-# Descargamos el estado actual de los precios desde la URL
-datos_mercado = obtener_precios_online()
+if not pd.io.common.file_exists("historial_precios.csv"):
+    st.warning("El bot aún no ha guardado datos. Espera unos minutos.")
+    st.stop()
 
-# Estado de sesión para registrar la interacción del usuario
+# Cargar y preparar datos
+df = pd.read_csv("historial_precios.csv", names=["Fecha", "Skin", "Precio"])
+df["Fecha"] = pd.to_datetime(df["Fecha"])
+
+# Inicializar estado para los botones de la galería
 if 'skin_seleccionada' not in st.session_state:
     st.session_state.skin_seleccionada = None
 
-# Construcción de la cuadrícula visualizada
+st.subheader("Galería de Skins")
+
+# --- CONSTRUCCIÓN DE LA CUADRÍCULA ---
 num_columnas = 3
 cols = st.columns(num_columnas)
 
-# Despliegue de imágenes vinculadas al config.py
 for i, (nombre_skin, ruta_img) in enumerate(MAPA_IMAGENES.items()):
     col_actual = cols[i % num_columnas]
     with col_actual:
         if os.path.exists(ruta_img):
             st.image(ruta_img, use_container_width=True)
-            # Botón interactivo para asignar la skin seleccionada al estado de la aplicación
-            if st.button(f"Ver precio de {nombre_skin}", key=nombre_skin):
+            # El botón activa el análisis de la skin
+            if st.button(f"Ver Análisis de {nombre_skin}", key=f"btn_{nombre_skin}"):
                 st.session_state.skin_seleccionada = nombre_skin
         else:
-            st.error(f"Archivo de imagen faltante: {ruta_img}")
+            st.error(f"Imagen faltante en la carpeta assets: {ruta_img}")
 
-# --- Panel inferior de visualización de precios del JSON ---
+# --- SECCIÓN DE GRÁFICAS Y ESTADÍSTICAS ---
 if st.session_state.skin_seleccionada:
+    skin_actual = st.session_state.skin_seleccionada
     st.divider()
-    nombre = st.session_state.skin_seleccionada
-    ruta_img = MAPA_IMAGENES[nombre]
     
-    st.subheader(f"Precio en tiempo real: {nombre}")
-    
-    col_izq, col_der = st.columns(2)
-    with col_izq:
-        st.image(ruta_img, use_container_width=True)
-        
-    with col_der:
-        precio_detectado = "No encontrado en el JSON"
-        
-        # Validación de formato de diccionario (Clave -> Valor)
-        if isinstance(datos_mercado, dict):
-            if nombre in datos_mercado:
-                info_item = datos_mercado[nombre]
-                if isinstance(info_item, dict):
-                    precio_detectado = info_item.get("price") or info_item.get("precio") or "No definido"
+    # Mostrar título e imagen pequeña al lado de la gráfica
+    col_img, col_tit = st.columns([1, 4])
+    with col_img:
+        if os.path.exists(MAPA_IMAGENES.get(skin_actual, "")):
+            st.image(MAPA_IMAGENES[skin_actual], use_container_width=True)
+    with col_tit:
+        st.subheader(f"Tendencia Histórica: {skin_actual}")
+
+    # Filtrar el DataFrame
+    df_skin = df[df["Skin"] == skin_actual].copy()
+
+    # Si no hay datos en el CSV para esa skin exacta
+    if df_skin.empty:
+        st.warning(f"No hay registros en el historial para: {skin_actual}. Verifica que el nombre coincida exactamente con el del CSV.")
+    else:
+        # Gráfica principal
+        fig = px.line(df_skin, x='Fecha', y='Precio', markers=True)
+        fig.update_layout(xaxis_title="Fecha", yaxis_title="Oro", hovermode="x unified")
+        st.plotly_chart(fig, use_container_width=True)
+
+        # Sección de métricas
+        st.subheader("📈 Estadísticas Históricas")
+
+        def calcular_estadisticas(df_data, dias):
+            fecha_limite = datetime.now() - pd.Timedelta(days=dias)
+            df_periodo = df_data[df_data["Fecha"] >= fecha_limite]
+            
+            if df_periodo.empty:
+                return None
+            
+            min_val = df_periodo['Precio'].min()
+            max_val = df_periodo['Precio'].max()
+            precio_inicio = df_periodo.iloc[0]['Precio']
+            precio_actual = df_periodo.iloc[-1]['Precio']
+            
+            variacion = ((precio_actual - precio_inicio) / precio_inicio) * 100
+            
+            return min_val, max_val, variacion
+
+        c1, c2, c3 = st.columns(3)
+        periodos = [("1 Semana", 7, c1), ("3 Meses", 90, c2), ("6 Meses", 180, c3)]
+
+        for nombre, dias, columna in periodos:
+            res = calcular_estadisticas(df_skin, dias)
+            with columna:
+                st.write(f"**{nombre}**")
+                if res:
+                    mn, mx, var = res
+                    st.metric("Mínimo", f"{mn} G")
+                    st.metric("Máximo", f"{mx} G")
+                    st.metric("Variación", f"{var:.2f}%", delta=f"{var:.2f}%")
                 else:
-                    precio_detectado = info_item
-                    
-        # Validación alternativa si el JSON remoto se procesa como una lista de objetos
-        elif isinstance(datos_mercado, list):
-            for elemento in datos_mercado:
-                if elemento.get("name") == nombre or elemento.get("nombre") == nombre:
-                    precio_detectado = elemento.get("price") or elemento.get("precio") or "No definido"
-                    break
-        
-        # Muestra el indicador numérico extraído del sitio web externo
-        st.metric(label="Valor del Mercado Actual", value=f"{precio_detectado}")
+                    st.info("Sin datos suficientes en este rango.")
+
+st.divider()
+if st.button("Recargar Dashboard"):
+    st.rerun()
