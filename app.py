@@ -20,45 +20,53 @@ df["Fecha"] = pd.to_datetime(df["Fecha"])
 col1, col2 = st.columns(2)
 with col1:
     skin_seleccionada = st.selectbox("Selecciona skin:", df["Skin"].unique())
-with col2:
-    rango = st.radio("Rango de tiempo:", ["1 Semana", "1 Mes", "3 Meses"], horizontal=True)
 
-# Filtros
+# Filtro general de skin
 df_skin = df[df["Skin"] == skin_seleccionada].copy()
-if rango == "1 Semana":
-    fecha_limite = datetime.now() - pd.Timedelta(days=7)
-elif rango == "1 Mes":
-    fecha_limite = datetime.now() - pd.Timedelta(days=30)
-else:
-    fecha_limite = datetime.now() - pd.Timedelta(days=90)
 
-df_filtrado = df_skin[df_skin["Fecha"] >= fecha_limite]
-
+# --- GRÁFICA PRINCIPAL ---
 st.subheader(f"Tendencia: {skin_seleccionada}")
+fig = px.line(df_skin, x='Fecha', y='Precio', markers=True)
+fig.update_layout(xaxis_title="Fecha", yaxis_title="Oro", hovermode="x unified")
+st.plotly_chart(fig, use_container_width=True)
 
-if not df_filtrado.empty:
-    # Lógica de auto-escalado para evitar gráficas "infinitas" o planas
-    min_precio = df_filtrado['Precio'].min()
-    max_precio = df_filtrado['Precio'].max()
-    margen = (max_precio - min_precio) * 0.1 if (max_precio - min_precio) > 0 else max_precio * 0.1
-    y_min = max(0, min_precio - margen)
-    y_max = max_precio + margen
+# --- SECCIÓN DE ESTADÍSTICAS (Métricas) ---
+st.divider()
+st.subheader("📈 Estadísticas Históricas")
 
-    # Gráfica
-    fig = px.line(df_filtrado, x='Fecha', y='Precio', markers=True)
-    fig.update_layout(
-        xaxis_title="Fecha",
-        yaxis_title="Oro",
-        hovermode="x unified",
-        yaxis=dict(range=[y_min, y_max])
-    )
+def calcular_estadisticas(df_data, dias):
+    fecha_limite = datetime.now() - pd.Timedelta(days=dias)
+    df_periodo = df_data[df_data["Fecha"] >= fecha_limite]
     
-    st.plotly_chart(fig, use_container_width=True)
+    if df_periodo.empty:
+        return None
     
-    # Métrica de precio actual
-    st.metric(label="Precio Actual", value=f"{df_filtrado.iloc[-1]['Precio']} Oro")
-else:
-    st.info("No hay datos suficientes para este periodo.")
+    min_val = df_periodo['Precio'].min()
+    max_val = df_periodo['Precio'].max()
+    precio_inicio = df_periodo.iloc[0]['Precio']
+    precio_actual = df_periodo.iloc[-1]['Precio']
+    
+    # Cálculo de porcentaje: ((Final - Inicio) / Inicio) * 100
+    variacion = ((precio_actual - precio_inicio) / precio_inicio) * 100
+    
+    return min_val, max_val, variacion
+
+# Crear columnas para las 3 métricas
+c1, c2, c3 = st.columns(3)
+
+periodos = [("1 Semana", 7, c1), ("3 Meses", 90, c2), ("6 Meses", 180, c3)]
+
+for nombre, dias, columna in periodos:
+    res = calcular_estadisticas(df_skin, dias)
+    with columna:
+        st.write(f"**{nombre}**")
+        if res:
+            mn, mx, var = res
+            st.metric("Mínimo", f"{mn} G")
+            st.metric("Máximo", f"{mx} G")
+            st.metric("Variación", f"{var:.2f}%", delta=f"{var:.2f}%")
+        else:
+            st.info("Sin datos aún.")
 
 if st.button("Recargar Página"):
     st.rerun()
