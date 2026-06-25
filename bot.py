@@ -32,24 +32,19 @@ def obtener_precio(nombre_skin):
     return None
 
 try:
-    while True:
-        fecha_actual = datetime.now().strftime("%Y-%m-%d %H:%M")
+    fecha_actual = datetime.now().strftime("%Y-%m-%d %H:%M")
+    
+    with open(HISTORIAL_CSV, mode='a', newline='', encoding='utf-8') as f:
+        writer = csv.writer(f)
         
-        # Abrimos en modo 'a' (append) para añadir datos sin borrar los anteriores
-        with open(HISTORIAL_CSV, mode='a', newline='', encoding='utf-8') as f:
-            writer = csv.writer(f)
-            
-            # Iteramos sobre las llaves de tu config.py
-            for nombre_skin in MAPA_IMAGENES.keys():
-                precio = obtener_precio(nombre_skin)
-                if precio:
-                    writer.writerow([fecha_actual, nombre_skin, precio])
-                    print(f"💾 {fecha_actual} - {nombre_skin}: {precio} G")
-                else:
-                    print(f"⚠️ No se encontró precio para: {nombre_skin}")
-        
-        print("⏳ Esperando 2 minutos para la siguiente consulta...")
-        time.sleep(120) 
-        
-except KeyboardInterrupt:
-    print("\n🛑 Bot detenido.")
+        for nombre_skin in MAPA_IMAGENES.keys():
+            precio = obtener_precio(nombre_skin)
+            if precio:
+                writer.writerow([fecha_actual, nombre_skin, precio])
+                print(f"💾 {fecha_actual} - {nombre_skin}: {precio} G")
+            else:
+                print(f"⚠️ No se encontró precio para: {nombre_skin}")
+                
+    print("✅ Recolección finalizada exitosamente.")
+except Exception as e:
+    print(f"\n🛑 Error en la ejecución: {e}")
