@@ -1,0 +1,36 @@
+name: Recolector de Precios Standoff 2
+
+# Esto le dice a GitHub que corra el script cada 2 horas
+on:
+  schedule:
+    - cron: '0 */2 * * *'
+  # Esto te permite correrlo manualmente desde GitHub si quieres
+  workflow_dispatch:
+
+jobs:
+  actualizar-datos:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Clonar el repositorio
+      uses: actions/checkout@v3
+
+    - name: Configurar Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Instalar librerías
+      run: pip install -r requirements.txt
+
+    - name: Ejecutar el bot recolector
+      run: python bot.py
+
+    - name: Guardar los nuevos datos en GitHub
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action Bot"
+        git add historial_precios.csv
+        # Solo hace el commit si hubo cambios reales
+        git diff --quiet && git diff --staged --quiet || git commit -m "🤖 Actualización automática de historial de precios"
+        git push
