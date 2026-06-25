@@ -8,9 +8,12 @@ from config import MAPA_IMAGENES
 API_URL = "https://standoff-2.com/skins-new.php"
 HISTORIAL_CSV = "historial_precios.csv"
 
-# Cabecera para simular un navegador
+# Nuestras cabeceras exitosas de la prueba
 cabeceras = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Referer": "https://standoff-2.com/",
+    "Accept": "application/json, text/javascript, */*; q=0.01",
+    "X-Requested-With": "XMLHttpRequest"
 }
 
 print("🤖 [BOT] Iniciando recolección desde standoff-2.com...")
@@ -21,8 +24,9 @@ def obtener_precio(nombre_skin):
         r = requests.get(API_URL, headers=cabeceras, params=params, timeout=10)
         if r.status_code == 200:
             datos = r.json()
-            # Devolvemos el último registro (el más reciente)
-            return float(datos[-1].get("purchase_price", 0))
+            if datos:
+                # Retornamos el último precio de la lista
+                return float(datos[-1].get("purchase_price", 0))
     except Exception as e:
         print(f"Error consultando {nombre_skin}: {e}")
     return None
@@ -30,17 +34,22 @@ def obtener_precio(nombre_skin):
 try:
     while True:
         fecha_actual = datetime.now().strftime("%Y-%m-%d %H:%M")
+        
+        # Abrimos en modo 'a' (append) para añadir datos sin borrar los anteriores
         with open(HISTORIAL_CSV, mode='a', newline='', encoding='utf-8') as f:
             writer = csv.writer(f)
             
+            # Iteramos sobre las llaves de tu config.py
             for nombre_skin in MAPA_IMAGENES.keys():
                 precio = obtener_precio(nombre_skin)
                 if precio:
                     writer.writerow([fecha_actual, nombre_skin, precio])
                     print(f"💾 {fecha_actual} - {nombre_skin}: {precio} G")
+                else:
+                    print(f"⚠️ No se encontró precio para: {nombre_skin}")
         
-        # Esperar un tiempo prudente (ej: 1 hora) para no saturar
-        time.sleep(3600) 
+        print("⏳ Esperando 2 minutos para la siguiente consulta...")
+        time.sleep(120) 
+        
 except KeyboardInterrupt:
     print("\n🛑 Bot detenido.")
-
