@@ -58,7 +58,6 @@ if st.session_state.skin_seleccionada:
     # Si no hay datos en el CSV para esa skin exacta
     if df_skin.empty:
         st.warning(f"No hay registros en el historial para: {skin_actual}. Verifica que el nombre coincida exactamente con el del CSV.")
-    else:
       else:
         # --- CREACIÓN DE LA GRÁFICA OPTIMIZADA ---
         # 1. Extraemos los límites reales de tu información
